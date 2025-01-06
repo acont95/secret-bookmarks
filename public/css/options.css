@@ -1,0 +1,30 @@
+ol li {
+    list-style-type: none;
+    font: 1em system-ui;
+}
+
+fieldset {
+    font: 1em system-ui;
+    border-radius: 5px;  
+}
+
+input {
+    margin: 0.4rem;
+}
+
+li:focus {
+    background: lightgreen;
+}
+
+.container {
+    display:flex;
+}
+
+#bookmark_tree {
+    border: 2px solid black;
+    flex: 1;
+}
+
+form {
+    border: 2px solid black;
+}

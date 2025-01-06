@@ -1,23 +1,23 @@
 {
-    "manifest_version": 2,
-    "name": "Borderify",
+    "manifest_version": 3,
+    "name": "Firefox Secret Bookmarks",
     "version": "1.0",
-  
-    "description": "Adds a red border to all webpages matching mozilla.org.",
+
+    "description": "Encrypt selected bookmarks folders.",
   
     "icons": {
-      "48": "icons/border-48.png"
+      "48": "public/images/border-48.png"
     },
   
     "content_scripts": [
       {
-        "matches": ["*://*.mozilla.org/*"],
-        "js": ["src/borderify.js"]
+        "matches": ["<all_urls>"],
+        "js": ["public/js/borderify.js"]
       }
     ],
 
     "options_ui": {
-      "page": "options.html"
+      "page": "public/html/options.html"
     },
 
     "permissions": [
@@ -28,8 +28,12 @@
 
     "browser_specific_settings": {
       "gecko": {
-        "id": "addon@example.com"
+        "id": "firefox-secret-bookmarks@org.ac.com"
       }
+    },
+    "content_security_policy": {
+      "extension_pages": "script-src 'self' 'wasm-unsafe-eval'"
     }
+
   }
   
