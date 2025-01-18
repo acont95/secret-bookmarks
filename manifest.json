@@ -8,13 +8,6 @@
     "icons": {
       "48": "public/images/book-lock-outline.svg"
     },
-  
-    "content_scripts": [
-      {
-        "matches": ["<all_urls>"],
-        "js": ["public/js/borderify.js"]
-      }
-    ],
 
     "options_ui": {
       "page": "public/html/options.html"
@@ -31,12 +24,21 @@
         "id": "firefox-secret-bookmarks@org.ac.comaa"
       }
     },
+
     "content_security_policy": {
       "extension_pages": "script-src 'self' 'wasm-unsafe-eval'"
     },
+
     "action": {
       "default_area": "navbar",
       "default_popup": "public/html/popup.html"
+    },
+
+    "background": {
+      "scripts": [
+        "public/js/jquery/jquery.min.js", 
+        "public/js/background-script.js"
+      ]
     }
   }
   

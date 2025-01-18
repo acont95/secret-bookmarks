@@ -13,13 +13,8 @@ ol li {
     margin-bottom: 0.25em;
 }
 
-h3 {
+h1 {
     font-family: system-ui;
-}
-
-input {
-    margin: 0.4rem;
-    margin-left: 0;
 }
 
 header {
@@ -33,23 +28,21 @@ header {
     align-items: center;
 }
 
-.container {
-    display:flex;
-}
-
-#bookmark_tree {
-    flex: 1;
+fieldset {
+    display: flex;
+    flex-direction: column;
+    margin-top: 0.25em;
+    align-items: flex-start;
+    row-gap: 0.5em;
 }
 
 .hide-item {
     display: none;
 }
 
-fieldset {
-    display: flex;
-    flex-direction: column;
-    margin-top: 0.25em;
-    align-items: flex-start;
+.password-fail {
+    font: 0.85em system-ui;
+    color: red;
 }
 
 /* button {

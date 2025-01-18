@@ -1,8 +1,9 @@
 interface NodeSettings {
     locked: boolean;
-    iv?: string
+    publicKey?: string
     salt?: string
     key?: string
+    iv?: string
 }
 
 function createListItemSwitch(checked: boolean) {
@@ -40,12 +41,25 @@ function createListItemFieldset() {
     `)
 }
 
-function createListItem(title: string, nodeId: string, checked: boolean) : JQuery<HTMLElement> {
-    return $(`<li tabindex="1" data-node-id="${nodeId}">`).append(
+function createListItem(title: string, nodeId: string, checked: boolean) : JQuery<HTMLLIElement> {
+    return <JQuery<HTMLLIElement>> $(`<li tabindex="1" data-node-id="${nodeId}">`).append(
         createListItemSwitch(checked),
         title,
         createListItemFieldset()
     );
+}
+
+function createListItemFromNodeSettings(
+    node: browser.bookmarks.BookmarkTreeNode, 
+    nodeSettings: NodeSettings | {}
+) : JQuery<HTMLLIElement> {
+    let checked = false;
+    let state = "unmanaged";
+    if (!$.isEmptyObject(nodeSettings)) {
+        checked = (<NodeSettings> nodeSettings).locked;
+        state = (<NodeSettings> nodeSettings).locked ? "locked" : "unlocked";
+    } 
+    return createListItem(node.title, node.id, checked).addClass(state);
 }
 
 async function traverseBookmarks(node: browser.bookmarks.BookmarkTreeNode, parentElement: any) {
@@ -58,15 +72,7 @@ async function traverseBookmarks(node: browser.bookmarks.BookmarkTreeNode, paren
     for (let childNode of node.children) {
         if (childNode.type == "folder") {
             let nodeSettings = await getNodeSettings(childNode.id);
-            let checked = false;
-            let state = "unmanaged";
-            if (!$.isEmptyObject(nodeSettings)) {
-                checked = (<NodeSettings> nodeSettings).locked;
-                state = (<NodeSettings> nodeSettings).locked ? "locked" : "unlocked";
-                $("#messagebox").text("No encryption key found. Enter passphrase to enable encryption.");
-            } 
-            let listItem = createListItem(childNode.title, childNode.id, checked);
-            listItem.addClass(state);
+            let listItem = createListItemFromNodeSettings(childNode, nodeSettings);
             newList.append(listItem);
         }
         await traverseBookmarks(childNode, newList);
@@ -101,7 +107,7 @@ function getKeyMaterial(passphrase: string) : Promise<CryptoKey> {
 
 /*
 Given some key material and some random salt
-derive an AES-KW key using PBKDF2.
+derive an AES-GCM key using PBKDF2.
 */
 function getKey(keyMaterial: CryptoKey, salt: Uint8Array) : Promise<CryptoKey> {
     return window.crypto.subtle.deriveKey(
@@ -112,7 +118,7 @@ function getKey(keyMaterial: CryptoKey, salt: Uint8Array) : Promise<CryptoKey> {
             hash: "SHA-256",
         },
         keyMaterial,
-        { name: "AES-KW", length: 256 },
+        { name: "AES-GCM", length: 256 },
         true,
         ["wrapKey", "unwrapKey"],
     );
@@ -121,15 +127,18 @@ function getKey(keyMaterial: CryptoKey, salt: Uint8Array) : Promise<CryptoKey> {
 /*
 Wrap the given key.
 */
-async function wrapCryptoKey(keyToWrap: CryptoKey, passphrase: string, salt: Uint8Array) : Promise<ArrayBuffer> {
+async function wrapCryptoKey(keyToWrap: CryptoKey, passphrase: string, salt: Uint8Array, iv: Uint8Array) : Promise<ArrayBuffer> {
     // get the key encryption key
     const keyMaterial = await getKeyMaterial(passphrase);
     const wrappingKey = await getKey(keyMaterial, salt);
-    return window.crypto.subtle.wrapKey("raw", keyToWrap, wrappingKey, "AES-KW");
+    return window.crypto.subtle.wrapKey("pkcs8", keyToWrap, wrappingKey, {
+        name: "AES-GCM", 
+        iv: iv
+    });
 }
 
 /*
-Derive an AES-KW key using PBKDF2.
+Derive an AES-GCM key using PBKDF2.
 */
 async function getUnwrappingKey(password: string, salt: Uint8Array) : Promise<CryptoKey> {
     const keyMaterial = await getKeyMaterial(password);
@@ -142,13 +151,13 @@ async function getUnwrappingKey(password: string, salt: Uint8Array) : Promise<Cr
         hash: "SHA-256",
       },
       keyMaterial,
-      { name: "AES-KW", length: 256 },
+      { name: "AES-GCM", length: 256 },
       true,
       ["wrapKey", "unwrapKey"],
     );
 }
 
-async function encryptBookmarks(node: browser.bookmarks.BookmarkTreeNode, key: CryptoKey, iv: Uint8Array) {
+async function encryptBookmarks(node: browser.bookmarks.BookmarkTreeNode, key: CryptoKey) {
     if (node.children == null){
         return;
     }
@@ -159,13 +168,13 @@ async function encryptBookmarks(node: browser.bookmarks.BookmarkTreeNode, key: C
     for (let childNode of node.children) {
         if (childNode.type == "bookmark" && !childNode.url!.includes(baseUrl)) {
             encryptedTitle = await crypto.subtle.encrypt(
-                {name: "AES-GCM", iv: iv},
+                {name: "RSA-OAEP"},
                 key,
                 encoder.encode(childNode.title)
             );
     
             encryptedUrl = await crypto.subtle.encrypt(
-                {name: "AES-GCM", iv: iv},
+                {name: "RSA-OAEP"},
                 key,
                 encoder.encode(childNode.url)
             );
@@ -184,7 +193,7 @@ async function encryptBookmarks(node: browser.bookmarks.BookmarkTreeNode, key: C
     }
 }
 
-async function decryptBookmarks(node: browser.bookmarks.BookmarkTreeNode, key: CryptoKey, iv: Uint8Array) {
+async function decryptBookmarks(node: browser.bookmarks.BookmarkTreeNode, key: CryptoKey) {
     if (node.children == null){
         return;
     }
@@ -196,13 +205,13 @@ async function decryptBookmarks(node: browser.bookmarks.BookmarkTreeNode, key: C
     for (let childNode of node.children) {
         if (childNode.type == "bookmark" && childNode.url!.includes(baseUrl)) {
             decryptedTitle = await crypto.subtle.decrypt(
-                {name: "AES-GCM", iv: iv},
+                {name: "RSA-OAEP"},
                 key,
                 base64ToBytes(childNode.title)
             );
     
             decryptedUrl = await crypto.subtle.decrypt(
-                {name: "AES-GCM", iv: iv},
+                {name: "RSA-OAEP"},
                 key,
                 base64ToBytes(childNode.url!.replace(baseUrl, ""))
             );
@@ -218,6 +227,9 @@ async function decryptBookmarks(node: browser.bookmarks.BookmarkTreeNode, key: C
     }
 }
 
+/*
+https://developer.mozilla.org/en-US/docs/Web/API/Window/btoa
+*/
 function bytesToBase64(bytes: Uint8Array) : string {
     const binString = Array.from(bytes, (byte) =>
         String.fromCodePoint(byte),
@@ -256,104 +268,155 @@ async function updateNodeSettings(nodeId: string, newSettings: NodeSettings) {
     return browser.storage.sync.set({[`node_settings/${nodeId}`]: existingSettings});
 }
 
-async function getEncryptionDetailsFromNodeSettings(
+async function unwrapPrivateKey(
     password: string,
-    nodeSettings: NodeSettings
-) : Promise<{initializationVector: Uint8Array<ArrayBuffer>, secretKey: CryptoKey}>  {
-    let salt = base64ToBytes(nodeSettings.salt!);
-    let initializationVector = base64ToBytes(nodeSettings.iv!);
-    let wrappedKey = bytesToArrayBuffer(base64ToBytes(nodeSettings.key!));
+    keyString: string, 
+    saltString: string,
+    ivString: string
+) : Promise<CryptoKey>  {
+    let salt = base64ToBytes(saltString);
+    let wrappedKey = bytesToArrayBuffer(base64ToBytes(keyString));
+    let iv = bytesToArrayBuffer(base64ToBytes(ivString));
     let unwrapKey = await getUnwrappingKey(password, salt);
+    console.log("unwrap key");
     let secretKey = await crypto.subtle.unwrapKey(
-        "raw", 
+        "pkcs8", 
         wrappedKey, 
         unwrapKey,
-        {name: "AES-KW"},
-        {name: "AES-GCM"},
+        {name: "AES-GCM", iv: iv},
+        {name: "RSA-OAEP", hash: "SHA-256"},
         true,
-        ["encrypt", "decrypt"]
+        ["decrypt"]
     );
 
-    return {
-        initializationVector : initializationVector,
-        secretKey : secretKey
-    }
+    return secretKey;
+}
+
+async function wrapPrivateKey(password: string, key: CryptoKey, salt: Uint8Array, iv: Uint8Array): Promise<string> {
+    let wrappedPrivateKey = await wrapCryptoKey(key, password, salt, iv);
+    return bytesToBase64(new Uint8Array(wrappedPrivateKey))
+}
+
+async function importPublicKey(keyString: string) : Promise<CryptoKey>  {
+    // fetch the part of the PEM string between header and footer
+    let pemHeader = "-----BEGIN PUBLIC KEY-----";
+    let pemFooter = "-----END PUBLIC KEY-----";
+    let pemContents = keyString.substring(
+        pemHeader.length,
+        keyString.length - pemFooter.length - 1,
+    );
+    let publicKey = await crypto.subtle.importKey(
+        "spki",
+        bytesToArrayBuffer(base64ToBytes(pemContents)),
+        {
+            name: "RSA-OAEP",
+            hash: "SHA-256",
+        },
+        true,
+        ["encrypt"]
+    );
+
+    return publicKey;
+}
+
+async function exportPublicKey(key: CryptoKey) : Promise<string> {
+    let publicKey = await window.crypto.subtle.exportKey(
+        "spki",
+        key
+    );
+
+    let base64PublicKey = bytesToBase64(new Uint8Array(publicKey));
+    return `-----BEGIN PUBLIC KEY-----\n${base64PublicKey}\n-----END PUBLIC KEY-----`;
+}
+
+function generateKeyPair() {
+    return window.crypto.subtle.generateKey(
+        {
+            name: "RSA-OAEP",
+            modulusLength: 2048,
+            publicExponent: new Uint8Array([1, 0, 1]),
+            hash: "SHA-256",
+        },
+        true,
+        ["encrypt", "decrypt"],
+    );
 }
 
 async function onSubmitPasswordSet(listItem : JQuery<HTMLLIElement>, selectedNodeId: string) {
     console.log("SUBMIT");
     let password = listItem.find("input.password-set-input").val()!.toString();
-    let iv = crypto.getRandomValues(new Uint8Array(12));
     let salt = crypto.getRandomValues(new Uint8Array(16));
+    let iv = window.crypto.getRandomValues(new Uint8Array(12));
 
-    let secretKey = await window.crypto.subtle.generateKey(
-        {name: "AES-GCM", length: 256},
-        true,
-        ["encrypt", "decrypt"],
-    );
+    let keyPair = await generateKeyPair();
+    let publicKeyPem = await exportPublicKey(keyPair.publicKey);
+    let wrappedPrivateKey = await wrapPrivateKey(password, keyPair.privateKey, salt, iv);
 
-    let wrappedKey = await wrapCryptoKey(secretKey, password, salt);
-
-    let jsonSettings = {
+    await updateNodeSettings(selectedNodeId, {
         locked: true,
-        iv: bytesToBase64(iv),
+        publicKey: publicKeyPem,
         salt: bytesToBase64(salt),
-        key: bytesToBase64(new Uint8Array(wrappedKey))
-    };
-
-    await updateNodeSettings(selectedNodeId, jsonSettings);
+        key: wrappedPrivateKey,
+        iv: bytesToBase64(iv)
+    });
 
     $('.password').val("");
     listItem.find("fieldset.password-set-fieldset").addClass("hide-item");
-    listItem.find("input.lock-toggle").prop("checked", true);
 
     let bookmarkNode = (await browser.bookmarks.getSubTree(selectedNodeId))[0];
-    await encryptBookmarks(bookmarkNode, secretKey, iv);
+    await encryptBookmarks(bookmarkNode, keyPair.publicKey);
     $("#messagebox").text("Encryption successful.");
 }
 
 async function onSubmitPasswordEnter(listItem : JQuery<HTMLLIElement>, selectedNodeId: string) {
     console.log("Password Enter Submit");
-    let nodeCheckbox = listItem.find("input.lock-toggle");
     let bookmarkNode = (await browser.bookmarks.getSubTree(selectedNodeId))[0];
-    let nodeSettings = await getNodeSettings(selectedNodeId);
+    let nodeSettings = <NodeSettings> await getNodeSettings(selectedNodeId);
     let password = listItem.find("input.password-enter-input").val()!.toString();
 
     try {
-        let encryptionDetails = await getEncryptionDetailsFromNodeSettings(password, <NodeSettings> nodeSettings);
-        switch (nodeCheckbox.prop("checked")) {
-            case true:
-                console.log("ENCRYPT");
-                await encryptBookmarks(bookmarkNode, encryptionDetails.secretKey, encryptionDetails.initializationVector);
-                await updateNodeSettings(selectedNodeId, {locked:true});
-                break;
-            case false:
-                console.log("DECRYPT");
-                await decryptBookmarks(bookmarkNode, encryptionDetails.secretKey, encryptionDetails.initializationVector);
-                await updateNodeSettings(selectedNodeId, {locked:false});
-                break;
-        }
+        let privateKey = await unwrapPrivateKey(password, nodeSettings.key!, nodeSettings.salt!, nodeSettings.iv!);
+        console.log(privateKey);
+        await decryptBookmarks(bookmarkNode, privateKey);
+        await updateNodeSettings(selectedNodeId, {locked:false});
         listItem.find("fieldset.password-enter-fieldset").addClass("hide-item");
+        listItem.removeClass("transition");
     } catch (error) {
-        // $(eventTarget).prop("checked", !eventTarget.checked);
+        console.log(error);
         listItem.find("div.password-fail").removeClass("hide-item");
         console.log("Wrong Password");
     }
 }
 
-async function onClickLock(listItem : JQuery<HTMLLIElement>, selectedNodeId: string) {
+function resetListItems(this: HTMLElement, index: number, element: HTMLElement): void {
+    let nodeId = $(this).data("node-id");
+    let nodeSettings: NodeSettings | {};
+    getNodeSettings(nodeId).then((value) => {
+        nodeSettings = value;
+        return browser.bookmarks.get(nodeId);
+    }).then((value) => {
+        $(this).replaceWith(createListItemFromNodeSettings(value[0], nodeSettings));
+    });
+}
+
+async function onClickLock(listItem: JQuery<HTMLLIElement>, selectedNodeId: string) {
     console.log("LOCK");
-    let nodeSettings = await getNodeSettings(selectedNodeId);
-    $("li").not(listItem).children("fieldset").addClass("hide-item");
-    $("li").not(listItem).children("div.password-fail").addClass("hide-item");
+    $("li").not(listItem).each(resetListItems);
     $(".password").val("");
+    let nodeCheckbox = listItem.find("input.lock-toggle");
+    let nodeSettings = await getNodeSettings(selectedNodeId);
 
     if ($.isEmptyObject(nodeSettings)) {
-        // $(eventTarget).prop("checked", !eventTarget.checked);
-        listItem.children("fieldset.password-set-fieldset").toggle();
+        listItem.children("fieldset.password-set-fieldset").toggleClass("hide-item");
     } else {
-        // $(eventTarget).prop("checked", !eventTarget.checked);
-        listItem.children("fieldset.password-enter-fieldset").toggle();
+        if (nodeCheckbox.prop("checked")) {
+            let publicKey = await importPublicKey((<NodeSettings> nodeSettings).publicKey!);
+            let bookmarkNode = (await browser.bookmarks.getSubTree(selectedNodeId))[0];
+            await encryptBookmarks(bookmarkNode, publicKey);
+            await updateNodeSettings(selectedNodeId, {locked:true});
+        } else {
+            listItem.children("fieldset.password-enter-fieldset").toggleClass("hide-item");
+        }
     }
 }
 
