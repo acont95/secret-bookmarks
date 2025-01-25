@@ -13,6 +13,10 @@ ol li {
     margin-bottom: 0.25em;
 }
 
+/* li:hover {
+    background-color: grey;
+} */
+
 h1 {
     font-family: system-ui;
 }
@@ -80,6 +84,14 @@ fieldset {
     transition: .4s;
 }
 
+.slider.locked {
+    background-color: red;
+}
+
+.slider.unlocked {
+    background-color: lightgreen;
+}
+
 .slider:before {
     position: absolute;
     content: "";
@@ -92,9 +104,9 @@ fieldset {
     transition: .4s;
 }
 
-input:checked + .slider {
+/* input:checked + .slider {
     background-color: lightgreen;      
-}
+} */
 
 input:focus + .slider {
     box-shadow: 0 0 1px lightgreen;
