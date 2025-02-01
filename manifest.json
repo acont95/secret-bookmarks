@@ -15,13 +15,12 @@
 
     "permissions": [
         "bookmarks",
-        "tabs",
         "storage"
     ],
 
     "browser_specific_settings": {
       "gecko": {
-        "id": "firefox-secret-bookmarks@org.ac.comaa"
+        "id": "firefox-secret-bookmarks@org.ac.com"
       }
     },
 

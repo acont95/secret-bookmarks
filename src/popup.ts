@@ -10,6 +10,7 @@ import {
     bytesToBase64, 
     encryptBookmarks, 
     decryptBookmarks, 
+    isEmpty
 } from './common.js';
 
 interface State {
@@ -19,34 +20,23 @@ interface State {
 interface BookmarkNodeObject {
     nodeSettings: NodeSettings | {};
     node: browser.bookmarks.BookmarkTreeNode;
-    passwordSet: boolean;
-    passwordEnter: boolean;
 }
 
 const state: State = {
     nodeObject: {}
 };
 
-const defaultNodeSettings: NodeSettings = {
-    locked: false
-};
-
-const renderNodeEvent = new CustomEvent('renderNode', {
-    detail: { message: 'Re-render the node' },
+const passwordSubmitEvent = new CustomEvent('passwordSubmit', {
+    detail: { password: "" },
     bubbles: true, // Allow event to bubble up
     composed: true, // Allow event to pass through shadow DOM boundaries
 });
 
-function isEmpty(obj: object) {
-    // Check if the object is null or undefined
-    if (obj == null) {
-      return true; 
-    }
-    // Use Object.keys to get an array of the object's keys
-    const keys = Object.keys(obj); 
-    // If the length of the keys array is 0, the object is empty
-    return keys.length === 0; 
-}
+const resetOtherNodesEvent = new CustomEvent('resetOthers', {
+    detail: { nodeId: "" },
+    bubbles: true, // Allow event to bubble up
+    composed: true, // Allow event to pass through shadow DOM boundaries
+});
 
 async function setBookmarkTreeState(node: browser.bookmarks.BookmarkTreeNode) {
     if (node.children == null) {
@@ -58,9 +48,7 @@ async function setBookmarkTreeState(node: browser.bookmarks.BookmarkTreeNode) {
             let nodeSettings = await getNodeSettings(childNode.id);
             state.nodeObject[childNode.id] = {
                 nodeSettings: nodeSettings,
-                node: childNode,
-                passwordEnter: false,
-                passwordSet: false
+                node: childNode
             };
         }
         await setBookmarkTreeState(childNode);
@@ -83,9 +71,57 @@ function htmlToNode(html: string): DocumentFragment {
 }
 
 class SliderCheckbox extends HTMLElement {
-    get nodeId(): string { return this.dataset['nodeId']!; }
-    get checkboxState() {
-        return (<HTMLInputElement> this.shadowRoot!.querySelector("input.lock-toggle")).checked;
+    #init = true;
+
+    get locked(): boolean { return this.hasAttribute('locked'); }
+    get unlocked(): boolean { return this.hasAttribute('unlocked'); }
+    get checked(): boolean { return this.hasAttribute("checked"); }
+
+    set checked(value) {
+        if (value) {
+            this.setAttribute('checked', '');
+        } else {
+            this.removeAttribute('checked');
+        }
+    }
+
+    get #checkbox() {
+        return <HTMLInputElement> this.shadowRoot!.querySelector("input.lock-toggle");
+    }
+
+    get #sliderSpan() {
+        return this.shadowRoot!.querySelector("span.slider")!;
+    }
+
+    static observedAttributes = ["locked", "unlocked", "checked"];
+
+    attributeChangedCallback(name: string, oldValue: string, newValue: string) {
+        if (!this.#init) {
+            switch (name) {
+                case "locked":
+                    if (newValue !== null) {
+                        this.#sliderSpan.classList.replace("unlocked", "locked");
+                        this.#sliderSpan.classList.add("locked");
+                    } else {
+                        this.#sliderSpan.classList.remove("locked");
+                    }
+                    break;                    
+                case "unlocked":
+                    if (newValue !== null) {
+                        this.#sliderSpan.classList.replace("locked", "unlocked");
+                        this.#sliderSpan.classList.add("unlocked");
+                    } else {
+                        this.#sliderSpan.classList.remove("unlocked");
+                    }
+                    break;
+                case "checked":
+                    this.#checkbox.checked = newValue !== null;
+                    this.#checkbox.offsetHeight;
+                    break;
+                default:
+                    break;
+            }
+        }
     }
 
     constructor() {
@@ -93,15 +129,11 @@ class SliderCheckbox extends HTMLElement {
         super();  
         // Create a shadow root
         this.attachShadow({mode: 'open'});
+        this.handleClick = this.handleClick.bind(this);
+        this.handleCheckboxChanged = this.handleCheckboxChanged.bind(this);
     }
 
     render() {
-        let nodeState = state.nodeObject[this.nodeId];
-
-        let isManaged = !isEmpty(nodeState.nodeSettings);
-        let nodeSettings = isManaged ? <NodeSettings> nodeState.nodeSettings: defaultNodeSettings;
-        let sliderClass = isManaged ? (nodeSettings.locked ? 'locked' : 'unlocked') : undefined;
-
         const html = `
             <style>
                 /* https://www.w3schools.com/howto/howto_css_switch.asp */
@@ -155,10 +187,6 @@ class SliderCheckbox extends HTMLElement {
                     transition: .4s;
                 }
 
-                /* input:checked + .slider {
-                    background-color: lightgreen;      
-                } */
-
                 input:focus + .slider {
                     box-shadow: 0 0 1px lightgreen;
                 }
@@ -179,8 +207,8 @@ class SliderCheckbox extends HTMLElement {
                 } 
             </style>
             <label class="switch">
-                <input type="checkbox" class="lock-toggle" ${nodeSettings.locked ? 'checked' : ''} />
-                <span class="slider round ${sliderClass}"></span>
+                <input type="checkbox" class="lock-toggle" ${this.checked ? 'checked' : ''} />
+                <span class="slider round ${this.locked ? "locked" : ""} ${this.unlocked ? "unlocked" : ""}"></span>
             </label> `;
 
         let element = htmlToNode(html);
@@ -189,23 +217,61 @@ class SliderCheckbox extends HTMLElement {
         this.shadowRoot!.replaceChildren(element);
     }
 
-    handleLabelClick(event: Event) {
+    handleClick(event: Event) {
+        this.checked = this.#checkbox.checked;
         if (!(<HTMLElement> event.target).matches("input")) {
             event.stopPropagation();
         }
     }
 
+    handleCheckboxChanged(event: Event) {
+        this.checked = this.#checkbox.checked;
+    }
+
     connectedCallback() {
         this.render();
-        this.shadowRoot!.addEventListener("click", this.handleLabelClick);
+        this.#init = false;
+        this.shadowRoot!.addEventListener("click", this.handleClick);
+        // Add an event listener to update the checked state when the checkbox is clicked
+        this.#checkbox.addEventListener('change', this.handleCheckboxChanged);
     }
 
     disconnectedCallback() {
-        this.shadowRoot!.removeEventListener("click", this.handleLabelClick);
-    }}
+        this.shadowRoot!.removeEventListener("click", this.handleClick);
+        this.#checkbox.removeEventListener('change', this.handleCheckboxChanged);
+    }
+}
 
 class PasswordEnterFieldset extends HTMLElement {
-    get nodeId(): string { return this.dataset['nodeId']!; }
+    #init = true;
+
+    get passwordFail(): boolean { return this.hasAttribute("password-fail") };
+
+    get #password() {
+        return (<HTMLInputElement> this.shadowRoot!.querySelector("#password")).value;
+    }
+
+    get #passwordFail() {
+        return (<HTMLInputElement> this.shadowRoot!.querySelector("div.password-fail"));
+    }
+
+    static observedAttributes = ["password-fail"];
+
+    attributeChangedCallback(name: string, oldValue: string, newValue: string) {
+        if (!this.#init) {
+            switch (name) {
+                case "password-fail":
+                    if (this.passwordFail) {
+                        this.#passwordFail.hidden = false;
+                    } else {
+                        this.#passwordFail.hidden = true;
+                    }
+                    break;                    
+                default:
+                    break;
+            }
+        }
+    }
 
     constructor() {
         // Always call super first in constructor
@@ -214,6 +280,7 @@ class PasswordEnterFieldset extends HTMLElement {
         this.attachShadow({mode: 'open'});
         this.handleClick = this.handleClick.bind(this);
     }
+
     render() {
         const html = `
             <style>
@@ -232,7 +299,7 @@ class PasswordEnterFieldset extends HTMLElement {
             <fieldset class="password-enter-fieldset hide-item">
                 <label for="password">Passphrase</label>
                 <input id="password" class="password password-enter-input" type="password"/>
-                <div class="password-fail hide-item">Wrong password. Try again.</div>
+                <div class="password-fail" hidden>Wrong password. Try again.</div>
                 <button id="password-enter-button" type="button">Submit</button>
             </fieldset>`;
         let element = htmlToNode(html);
@@ -241,29 +308,15 @@ class PasswordEnterFieldset extends HTMLElement {
         this.shadowRoot!.replaceChildren(element);
     }
 
-    async handleClick() {
-        let bookmarkNode = (await browser.bookmarks.getSubTree(this.nodeId))[0];
-        let nodeSettings = <NodeSettings> await getNodeSettings(this.nodeId);
-        let password = (<HTMLInputElement> this.shadowRoot!.querySelector("#password")).value;
-        let nodeState = state.nodeObject[this.nodeId];
-
-        try {
-            let privateKey = await unwrapPrivateKey(password, nodeSettings.key!, nodeSettings.salt!, nodeSettings.iv!);
-            await decryptBookmarks(bookmarkNode, privateKey);
-            nodeState.passwordEnter = false;
-            nodeState.passwordSet = false;
-            (<NodeSettings> nodeState.nodeSettings).locked = false;
-            await updateNodeSettings(this.nodeId, <NodeSettings> nodeState.nodeSettings);
-            this.dispatchEvent(renderNodeEvent);
-        } catch (error) {
-            console.log(error);
-            this.shadowRoot!.querySelector("div.password-fail")?.classList.remove("hide-item");
-            console.log("Wrong Password");
-        }
+    async handleClick(event: Event) {
+        event.stopPropagation();
+        passwordSubmitEvent.detail.password = this.#password;
+        this.dispatchEvent(passwordSubmitEvent);
     }
 
     connectedCallback() {
         this.render();
+        this.#init = false;
         this.shadowRoot!.querySelector("#password-enter-button")!.addEventListener('click', this.handleClick);
     }
 
@@ -273,7 +326,13 @@ class PasswordEnterFieldset extends HTMLElement {
 }
 
 class PasswordSetFieldset extends HTMLElement {
-    get nodeId(): string { return this.dataset['nodeId']!; }
+    get #password() {
+        return (<HTMLInputElement> this.shadowRoot!.querySelector(`#password`)).value;
+    }
+
+    get #passwordConfirm() {
+        return (<HTMLInputElement> this.shadowRoot!.querySelector(`#password-confirm`)).value;
+    }
 
     constructor() {
         // Always call super first in constructor
@@ -309,34 +368,15 @@ class PasswordSetFieldset extends HTMLElement {
     }
 
     handleKeyup() {
-        let password = (<HTMLInputElement> this.shadowRoot!.querySelector(`#password`)).value;
-        let passwordConfirm = (<HTMLInputElement> this.shadowRoot!.querySelector(`#password-confirm`)).value;
+        let password = this.#password;
+        let passwordConfirm = this.#passwordConfirm;
         (<HTMLButtonElement> this.shadowRoot!.querySelector("#password-set-button")).disabled = password != passwordConfirm;
     }
 
-    async handleClick() {
-        let password = (<HTMLInputElement> this.shadowRoot!.querySelector(`#password`)).value;
-        let salt = crypto.getRandomValues(new Uint8Array(16));
-        let iv = window.crypto.getRandomValues(new Uint8Array(12));
-    
-        let keyPair = await generateKeyPair();
-        let publicKeyPem = await exportPublicKey(keyPair.publicKey);
-        let wrappedPrivateKey = await wrapPrivateKey(password, keyPair.privateKey, salt, iv);
-        let nodeState = state.nodeObject[this.nodeId];
-        nodeState.passwordSet = false;
-        nodeState.passwordEnter = false;
-        nodeState.nodeSettings = {
-            locked: true,
-            publicKey: publicKeyPem,
-            salt: bytesToBase64(salt),
-            key: wrappedPrivateKey,
-            iv: bytesToBase64(iv)
-        };
-    
-        let bookmarkNode = (await browser.bookmarks.getSubTree(this.nodeId))[0];
-        await updateNodeSettings(this.nodeId, <NodeSettings> nodeState.nodeSettings);
-        await encryptBookmarks(bookmarkNode, keyPair.publicKey);
-        this.dispatchEvent(renderNodeEvent);
+    async handleClick(event: Event) {
+        event.stopPropagation();
+        passwordSubmitEvent.detail.password = this.#password;
+        this.dispatchEvent(passwordSubmitEvent);
     }
 
     connectedCallback() {
@@ -359,7 +399,66 @@ class PasswordSetFieldset extends HTMLElement {
 }
 
 class BookmarkNode extends HTMLElement {
+    #init = true;
+
     get nodeId(): string { return this.dataset['nodeId']!; }
+    get reset(): boolean { return this.hasAttribute("reset"); }
+
+    get #passwordEnterFieldset() {
+        const slot = <HTMLSlotElement> this.shadowRoot!.querySelector('slot[name="fieldset-slot"]');
+        if (slot.assignedNodes()[0] instanceof PasswordEnterFieldset) {
+            return slot.assignedNodes()[0];
+        }
+    }
+
+    get #passwordSetFieldset() {
+        const slot = <HTMLSlotElement> this.shadowRoot!.querySelector('slot[name="fieldset-slot"]');
+        if (slot.assignedNodes()[0] instanceof PasswordSetFieldset) {
+            return slot.assignedNodes()[0];
+        }
+    }
+
+    get #sliderCheckbox() {
+        return <SliderCheckbox> this.shadowRoot!.querySelector("slider-checkbox")!;
+    }
+
+    static observedAttributes = ["reset"];
+
+    attributeChangedCallback(name: string, oldValue: string, newValue: string) {
+        if (!this.#init) {
+            switch (name) {
+                case "reset":
+                    let nodeState = state.nodeObject[this.nodeId];
+                    let managed = !isEmpty(nodeState.nodeSettings);
+                    let nodeSettings = <NodeSettings> nodeState.nodeSettings;
+                    let checked = managed && nodeSettings.locked ? "checked" : "";
+                    let locked = managed && nodeSettings.locked ? "locked" : "";
+                    let unlocked = managed && !nodeSettings.locked ? "unlocked" : "";
+
+                    if (checked) {
+                        this.#sliderCheckbox.setAttribute("checked", "");
+                    } else {
+                        this.#sliderCheckbox.removeAttribute("checked");
+                    }
+                    if (locked) {
+                        this.#sliderCheckbox.setAttribute("locked", "");
+                    } else {
+                        this.#sliderCheckbox.removeAttribute("locked");
+                    }
+                    if (unlocked) {
+                        this.#sliderCheckbox.setAttribute("unlocked", "");
+                    } else {
+                        this.#sliderCheckbox.removeAttribute("unlocked");
+                    }
+
+                    this.#clearFieldsets();
+                    this.removeAttribute("reset");
+                    break;                    
+                default:
+                    break;
+            }
+        }
+    }
 
     constructor() {
         // Always call super first in constructor
@@ -367,67 +466,134 @@ class BookmarkNode extends HTMLElement {
         // Create a shadow root
         this.attachShadow({mode: 'open'});
         this.handleClick = this.handleClick.bind(this);
-        this.handleRenderNode = this.handleRenderNode.bind(this);
+        this.handlePasswordSubmit = this.handlePasswordSubmit.bind(this);
     }
 
     render() {
         let nodeState = state.nodeObject[this.nodeId];
+        let managed = !isEmpty(nodeState.nodeSettings);
+        let nodeSettings = <NodeSettings> nodeState.nodeSettings;
+        let checked = managed && nodeSettings.locked ? "checked" : "";
+        let locked = managed && nodeSettings.locked ? "locked" : "";
+        let unlocked = managed && !nodeSettings.locked ? "unlocked" : "";
 
         const html = `
-            <div> 
-                <slider-checkbox data-node-id="${this.nodeId}"></slider-checkbox>
-                ${nodeState.node.title}
-                ${nodeState.passwordEnter ? `<password-enter-fieldset data-node-id="${this.nodeId}"></password-enter-fieldset>`: ""} 
-                ${nodeState.passwordSet ? `<password-set-fieldset data-node-id="${this.nodeId}"></password-set-fieldset>`: ""} 
-            </div>`;
+            <slider-checkbox data-node-id="${this.nodeId}" ${locked} ${unlocked} ${checked}></slider-checkbox>
+            ${nodeState.node.title}
+            <slot name="fieldset-slot"></slot>`;
         let element = htmlToNode(html);
         // Append it to the shadow root
         this.shadowRoot!.replaceChildren(element);
     }
 
+    #showPasswordEnter() {
+        if (this.shadowRoot!.querySelector("password-enter-fieldset") == null) {
+            let node = htmlToNode(`<password-enter-fieldset slot="fieldset-slot" data-node-id="${this.nodeId}"></password-enter-fieldset>`);
+            this.replaceChildren(node);
+        }
+    }
+
+    #showPasswordSet() {
+        if (this.shadowRoot!.querySelector("password-set-fieldset") == null) {
+            let node = htmlToNode(`<password-set-fieldset slot="fieldset-slot" data-node-id="${this.nodeId}"></password-set-fieldset>`);
+            this.replaceChildren(node);
+        }
+    }
+
+    #clearFieldsets() {
+        this.replaceChildren();
+    }
+
     async handleClick(e: Event) {
-        let checkbox: SliderCheckbox = this.shadowRoot!.querySelector("slider-checkbox")!;
+        resetOtherNodesEvent.detail.nodeId = this.nodeId;
+        this.dispatchEvent(resetOtherNodesEvent);
         let nodeState = state.nodeObject[this.nodeId];
     
         if (isEmpty(nodeState.nodeSettings)) {
-            console.log("EMPTY");
-            nodeState.passwordEnter = false;
-            nodeState.passwordSet = true;
+            if (this.#sliderCheckbox.checked) {
+                this.#showPasswordSet();
+            } else {
+                this.#clearFieldsets();
+            }
         } else {
-            if (checkbox.checkboxState) {
-                console.log("CHECKED");
+            if (this.#sliderCheckbox.checked) {
+                this.#clearFieldsets();
                 let publicKey = await importPublicKey((<NodeSettings> nodeState.nodeSettings).publicKey!);
                 let bookmarkSubTree = (await browser.bookmarks.getSubTree(this.nodeId))[0];
-                await encryptBookmarks(bookmarkSubTree, publicKey);
-                nodeState.passwordEnter = false;
-                nodeState.passwordSet = false;
                 (<NodeSettings> nodeState.nodeSettings).locked = true;
+                await updateNodeSettings(this.nodeId, <NodeSettings> nodeState.nodeSettings);
+                await encryptBookmarks(bookmarkSubTree, publicKey);
+                this.#sliderCheckbox.setAttribute("locked", "");
+                this.#sliderCheckbox.removeAttribute("unlocked");
             } else {
-                console.log("NOT CHECKED");
-                nodeState.passwordEnter = true;     
-                nodeState.passwordSet = false;
-                (<NodeSettings> nodeState.nodeSettings).locked = false;
+                this.#showPasswordEnter();
             }
         }
-        await updateNodeSettings(this.nodeId, <NodeSettings> nodeState.nodeSettings);
-        this.render();
     }
 
-    handleRenderNode(e: Event) {
+    async #passwordSubmit(password: string) {
+        let bookmarkNode = (await browser.bookmarks.getSubTree(this.nodeId))[0];
+        let nodeSettings = <NodeSettings> await getNodeSettings(this.nodeId);
+        let nodeState = state.nodeObject[this.nodeId];
+
+        try {
+            let privateKey = await unwrapPrivateKey(password, nodeSettings.key!, nodeSettings.salt!, nodeSettings.iv!);
+            await decryptBookmarks(bookmarkNode, privateKey);
+            (<NodeSettings> nodeState.nodeSettings).locked = false;
+            await updateNodeSettings(this.nodeId, <NodeSettings> nodeState.nodeSettings);
+            this.#clearFieldsets();
+            this.#sliderCheckbox.setAttribute("unlocked", "");
+            this.#sliderCheckbox.removeAttribute("locked");
+        } catch (error) {
+            console.log(error);
+            (<PasswordEnterFieldset> this.#passwordEnterFieldset).setAttribute("password-fail", "");
+            console.log("Wrong Password");
+        }
+    }
+
+    async #passwordEnter(password: string) {
+        let salt = crypto.getRandomValues(new Uint8Array(16));
+        let iv = window.crypto.getRandomValues(new Uint8Array(12));
+    
+        let keyPair = await generateKeyPair();
+        let publicKeyPem = await exportPublicKey(keyPair.publicKey);
+        let wrappedPrivateKey = await wrapPrivateKey(password, keyPair.privateKey, salt, iv);
+        let nodeState = state.nodeObject[this.nodeId];
+        nodeState.nodeSettings = {
+            locked: true,
+            publicKey: publicKeyPem,
+            salt: bytesToBase64(salt),
+            key: wrappedPrivateKey,
+            iv: bytesToBase64(iv)
+        };
+    
+        let bookmarkNode = (await browser.bookmarks.getSubTree(this.nodeId))[0];
+        await updateNodeSettings(this.nodeId, <NodeSettings> nodeState.nodeSettings);
+        await encryptBookmarks(bookmarkNode, keyPair.publicKey);
+        this.#sliderCheckbox.setAttribute("locked", "");
+        this.#sliderCheckbox.removeAttribute("unlocked");
+    }
+
+    async handlePasswordSubmit(e: Event) {
         e.stopPropagation();
-        console.log("renderNode handler");
-        this.render();
+        if (e.target instanceof PasswordEnterFieldset) {
+            this.#passwordSubmit((<CustomEvent> e).detail.password)
+        } else if (e.target instanceof PasswordSetFieldset) {
+            this.#clearFieldsets();
+            this.#passwordEnter((<CustomEvent> e).detail.password);
+        }
     }
 
     connectedCallback() {
         this.render();
+        this.#init = false;
         this.shadowRoot!.querySelector("slider-checkbox")!.addEventListener('click', this.handleClick);
-        this.addEventListener('renderNode', this.handleRenderNode);
+        this.addEventListener('passwordSubmit', this.handlePasswordSubmit);
     }
 
     disconnectedCallback() {
         this.shadowRoot!.querySelector("slider-checkbox")!.removeEventListener("click", this.handleClick);
-        this.removeEventListener('renderNode', this.handleRenderNode);
+        this.removeEventListener('passwordSubmit', this.handlePasswordSubmit);
     }
 }
 
@@ -437,7 +603,6 @@ class BookmarkNodeList extends HTMLElement {
         super();  
     }
     static getList(node: browser.bookmarks.BookmarkTreeNode): string {
-        // if (node.children == null) {return ""};
         const listItems = `${node.children?.map((item): string => {
             let result = "";
             if (item.type == "folder") {
@@ -449,11 +614,10 @@ class BookmarkNodeList extends HTMLElement {
             };
             return result;
         }).join("")}`;
-        const html = listItems.length >= 0 ? `
+        return listItems.length >= 0 ? `
             <ol>
                 ${listItems}
             </ol>`: "";
-        return html;
     }
 
     render() { 
@@ -485,8 +649,25 @@ class BookmarkNodeList extends HTMLElement {
         shadow.appendChild(element);
     }
 
+    resetOtherNodes(event: Event) {
+        let excludeId = (<CustomEvent> event).detail.nodeId;
+        if (excludeId !== "") {
+            this.shadowRoot!.querySelectorAll("bookmark-node").forEach((value) => {
+                let node = <BookmarkNode> value;
+                if (excludeId !== node.nodeId) {
+                    node.setAttribute("reset", "");
+                }
+            });
+        }
+    }
+
     connectedCallback() {
         this.render();
+        this.addEventListener('resetOthers', this.resetOtherNodes);
+    }
+
+    disconnectedCallback() {
+        this.removeEventListener('resetOthers', this.resetOtherNodes);
     }
 }
 

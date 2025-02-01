@@ -315,6 +315,17 @@ function generateKeyPair() {
     );
 }
 
+function isEmpty(obj: object) {
+    // Check if the object is null or undefined
+    if (obj == null) {
+      return true; 
+    }
+    // Use Object.keys to get an array of the object's keys
+    const keys = Object.keys(obj); 
+    // If the length of the keys array is 0, the object is empty
+    return keys.length === 0; 
+}
+
 export { 
     NodeSettings, 
     getNodeSettings,
@@ -328,5 +339,6 @@ export {
     base64ToBytes,
     encryptBookmarks, 
     decryptBookmarks, 
+    isEmpty
 };
 
