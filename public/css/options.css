@@ -1,0 +1,40 @@
+.buttons-container {
+    display: flex;
+    justify-content: flex-start;  /* Center the buttons horizontally */
+    gap: 20px;  /* Adds space between the buttons */
+    margin-top: 20px;  /* Adds space at the top */
+}
+
+/* Styling for buttons */
+button {
+    display: flex;
+    align-items: center;  /* Centers the icon and text vertically */
+    padding: 10px 20px;  /* Adds padding around the button */
+    font-size: 16px;  /* Sets the font size */
+    background-color: #f0f0f0;  /* Light gray background */
+    color: black;  /* White text */
+    border: none;  /* Removes the default border */
+    border-radius: 5px;  /* Rounds the corners */
+    cursor: pointer;  /* Changes the cursor to a pointer on hover */
+    transition: background-color 0.3s ease;  /* Smooth transition for hover effect */
+}
+
+/* Button hover effect */
+button:hover {
+    background-color: #e0e0e0;  /* Slightly darker gray on hover */
+    border-color: #888;  /* Darker border on hover */
+}
+
+/* Icon style */
+button img {
+    margin-right: 8px;  /* Adds space between the icon and text */
+}
+
+/* Style for the file input (hidden) */
+input[type="file"] {
+    display: none; /* Hide the file input */
+}
+
+#text {
+    font: 1em system-ui;
+}

@@ -229,7 +229,7 @@ function bytesToArrayBuffer(bytes: Uint8Array) : ArrayBuffer {
 async function getNodeSettings(nodeId: string) : Promise<NodeSettings | {}> {
     let key = `node_settings/${nodeId}`;
     let settings = await browser.storage.sync.get(key);
-    if (!$.isEmptyObject(settings)) {
+    if (!isEmpty(settings)) {
         return settings[key] as NodeSettings;
     } else {
         return {};
@@ -238,8 +238,12 @@ async function getNodeSettings(nodeId: string) : Promise<NodeSettings | {}> {
 
 async function updateNodeSettings(nodeId: string, newSettings: NodeSettings) {
     let existingSettings = await getNodeSettings(nodeId);
-    $.extend(existingSettings, newSettings);
-    return browser.storage.sync.set({[`node_settings/${nodeId}`]: existingSettings});
+    let merged = {...existingSettings, ...newSettings};
+    return browser.storage.sync.set({[`node_settings/${nodeId}`]: merged});
+}
+
+async function deleteNodeSettings(nodeId: string) {
+    return browser.storage.sync.remove(`node_settings/${nodeId}`);
 }
 
 async function unwrapPrivateKey(
@@ -330,6 +334,7 @@ export {
     NodeSettings, 
     getNodeSettings,
     updateNodeSettings, 
+    deleteNodeSettings,
     generateKeyPair, 
     importPublicKey,
     exportPublicKey, 

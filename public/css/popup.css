@@ -3,12 +3,29 @@ h1 {
 }
 
 header {
+    display: flex;
+    justify-content: center;
+}
+
+#header-container {
     font: 0.5rem system-ui;
     display: flex;
     justify-content: space-around;
     border: 2px solid lightblue;
     border-radius: 10px;
     margin-bottom: 4px;
-    min-width: 30em;
+    min-width: 32em;
     align-items: center;
+}
+
+/* Default (light mode or no preference) */
+.book-svg-icon {
+    content: url('/public/images/book-lock-outline.svg');
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+    .book-svg-icon {
+        content: url('/public/images/book-lock-outline-light.svg');
+    }
 }

@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="color-scheme" content="light dark">
+    <title>Secret Bookmarks</title>
+    <link rel="icon" type="image/x-icon" href="/public/images/book-lock.svg" />
+    <link rel="stylesheet" href="/public/css/installed.css" />
+  </head>
+
+  <header class="header">
+    <div id="header-container">
+      <img src="/public/images/book-lock.svg" alt="MDN" role="img" width="32" height="32"/>
+      <h1>Secret Bookmarks</h1>
+    </div>
+  </header>
+
+  <body>
+    <p>
+      Welcome to Secret Bookmarks! This extension provides the ability to password encrypt the bookmark entries inside of a bookmark folder. 
+    </p>
+    <h2>Getting Started</h2>
+    <ol>
+      <li>
+        <strong>Make a Backup</strong>
+        <p>
+          Using your browsers Bookmark Manager, export your bookmarks to ensure your data is protected before proceeding.
+        </p>
+      </li>
+      <li>
+        <strong>Access the Extension</strong>
+        <p>
+          Secret Bookmarks is accessed by default from the navigation bar alongside the URL Bar
+          using the 
+          <img class="book-svg-icon" src="/public/images/book-lock-outline.svg" alt="Icon" width="24" height="24" />
+          icon.
+        </p>
+      </li>
+      <li>
+        <strong>Encrypt a Folder</strong>
+        <p>
+          Your bookmark folder hierarchy is listed in the popup panel. To encrypt a folder toggle the slider next to the folder name
+          and set a password.
+        </p>
+      </li>
+      <li>
+        <strong>Decrypt a Folder</strong>
+        <p>
+          To decrypt a bookmarks folder, select Secret Bookmarks in the naviagtion bar and toggle the slider
+          next to the the encrypted folder. You will be prompted for your password.
+        </p>
+      </li>
+      <li>
+        <strong>Backup Encryption Details</strong>
+        <p>
+          The recommended method of backing up your bookmarks is to periodically export your unencrypted
+          bookmarks using the browsers bookmarks manager. In addition, Secret Bookmarks provides the ability to export 
+          encryption details of your managed folders to a text file. This file can be imported to restore settings, but 
+          note that current bookmark folders settings will be overwritten by the imported data if the same folder is referenced.
+        </p>
+      </li>
+      <li>
+        <strong>Add or Move a Bookmarks</strong>
+        <p>
+          Adding or moving an existing bookmark to a managed folder will automatically encrypt the bookmark
+          if the folder is currently locked. Removing an encrypted bookmark from a managed folder will NOT
+          prompt for the password and decrypt the bookmark.
+        </p>
+      </li>
+      <li>
+        <strong>Change a Folders Passphrase</strong>
+        <p>
+          Select the  
+          <img class="gear-svg-icon" src="/public/images/gear-svgrepo-com.svg" alt="Icon" width="24" height="24" />
+          icon, enter your current password and a new password then select submit.
+        </p>
+      </li>
+      <li>
+        <strong>Delete a Folders Encryption Keys</strong>
+        <p>
+          Select the  
+          <img class="trash-svg-icon" src="/public/images/trash-svgrepo-com.svg" alt="Icon" width="24" height="24" />
+          icon, enter your current password and select Delete Keys.
+        </p>
+      </li>
+    </ol>
+    <h2>Notes</h2>
+    <ul>
+      <li>
+        <strong>Applicable Bookmark Entries</strong>
+        <p>
+          Secret Bookmarks uses <a href="https://developer.mozilla.org/en-US/docs/Web/URI/Schemes/data" target="_blank">Data URLs</a> 
+          to store the base64 encrypted bookmark URL. The extension uses the presence/absence of a data URL to determine if a bookmark is already
+          encrypted and when to decrypt a bookmark. As a result of this implementation detail, user supplied data URLs bookmarks
+          are not supported with this extension and may cause undefined behavior. In addition, moving an encrypted bookmark from one folder 
+          to another encrypted folder will cause decryption failures.
+        </p>
+      </li>
+      <li>
+        <strong>Extension Settings</strong>
+        <p>
+          Secret Bookmarks will use sync storage if available to synchronize encryption details, otherwise storage will fallback 
+          to local storage. When using sync storage, keep in mind adding a bookmark to an encrypted folder on a device without
+          Secret Bookmarks installed may result in unencrypted bookmarks existing alonside encyrpted bookmarks in a folder believed to 
+          be in a locked state. You may need to decrypt then encrypt the folder again to ensure all bookmark entries are encrypted.
+        </p>
+      </li>
+      <li>
+        <strong>Technical Details</strong>
+        <p>
+          Information on the Secret Bookmarks technical implementation can be found on
+          <a href="https://github.com/acont95/firefox-secret-bookmarks" target="_blank">GitHub</a>.
+        </p>
+      </li>
+    </ul>
+  </body>
+</html>

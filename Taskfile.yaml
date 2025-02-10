@@ -1,11 +1,6 @@
 version: "3"
 
 tasks:
-  init:
-    desc: Run initialization commands
-    cmds:
-      - cp node_modules/jquery/dist/jquery.min.js public/js/jquery/
-
   build:
       desc: Build extension
       cmds:

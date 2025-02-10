@@ -1,0 +1,71 @@
+html * {
+    font-family: system-ui;
+}
+
+h1 {
+    font-size: 2rem;
+}
+
+h2 {
+    font-size: 1.5rem;
+}
+
+header {
+    display: flex;
+    justify-content: center;
+}
+
+li > strong {
+    font-size: 1rem;
+    font-weight: bold;
+}
+
+li > p {
+    font-size: 1rem;
+}
+
+#header-container {
+    display: flex;
+    justify-content: space-around;
+    border: 2px solid black;
+    border-radius: 10px;
+    margin-bottom: 4px;
+    min-width: 25%;
+    align-items: center;
+}
+
+/* Default (light mode or no preference) */
+.book-svg-icon {
+    content: url('/public/images/book-lock-outline.svg');
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+    .book-svg-icon {
+        content: url('/public/images/book-lock-outline-light.svg');
+    }
+}
+
+/* Default (light mode or no preference) */
+.gear-svg-icon {
+    content: url('/public/images/gear-svgrepo-com.svg');
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+    .gear-svg-icon {
+        content: url('/public/images/gear-svgrepo-com-light.svg');
+    }
+}
+
+/* Default (light mode or no preference) */
+.trash-svg-icon {
+    content: url('/public/images/trash-svgrepo-com.svg');
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+    .trash-svg-icon {
+        content: url('/public/images/trash-svgrepo-com-light.svg');
+    }
+}
