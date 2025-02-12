@@ -295,9 +295,15 @@ class PasswordEnterFieldset extends HTMLElement {
                     margin-top: 0.25em;
                     align-items: flex-start;
                     row-gap: 0.5em;
-                    border: 2px solid lightblue;
+                    border: 2px solid black;
                     border-radius: 10px;
                 }
+                /* Dark mode border color */
+                @media (prefers-color-scheme: dark) {
+                    fieldset {
+                        border: 2px solid white;
+                    }
+                }                                       
                 .password-fail {
                     font: 0.85em system-ui;
                     color: red;
@@ -359,9 +365,15 @@ class PasswordSetFieldset extends HTMLElement {
                     margin-top: 0.25em;
                     align-items: flex-start;
                     row-gap: 0.5em;
-                    border: 2px solid lightblue;
+                    border: 2px solid black;
                     border-radius: 10px;
                 }
+                /* Dark mode border color */
+                @media (prefers-color-scheme: dark) {
+                    fieldset {
+                        border: 2px solid white;
+                    }
+                }  
             </style>
             <fieldset class="password-set-fieldset hide-item">
                 <label for="password">Passphrase</label>
@@ -462,9 +474,15 @@ class PasswordChangeFieldset extends HTMLElement {
                     margin-top: 0.25em;
                     align-items: flex-start;
                     row-gap: 0.5em;
-                    border: 2px solid lightblue;
+                    border: 2px solid black;
                     border-radius: 10px;
                 }
+                /* Dark mode border color */
+                @media (prefers-color-scheme: dark) {
+                    fieldset {
+                        border: 2px solid white;
+                    }
+                }  
                 .password-fail {
                     font: 0.85em system-ui;
                     color: red;
@@ -571,9 +589,15 @@ class PasswordDeleteFieldset extends HTMLElement {
                     margin-top: 0.25em;
                     align-items: flex-start;
                     row-gap: 0.5em;
-                    border: 2px solid lightblue;
+                    border: 2px solid black;
                     border-radius: 10px;
                 }
+                /* Dark mode border color */
+                @media (prefers-color-scheme: dark) {
+                    fieldset {
+                        border: 2px solid white;
+                    }
+                }  
                 .password-fail {
                     font: 0.85em system-ui;
                     color: red;
