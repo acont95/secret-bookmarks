@@ -1,4 +1,5 @@
 {
+  "name": "secret-bookmarks",
   "dependencies": {
     "typescript": "^5.7.2"
   },

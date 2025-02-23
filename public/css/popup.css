@@ -11,11 +11,18 @@ header {
     font: 0.5rem system-ui;
     display: flex;
     justify-content: space-around;
-    border: 2px solid lightblue;
+    border: 2px solid black;
     border-radius: 10px;
     margin-bottom: 4px;
     min-width: 32em;
     align-items: center;
+}
+
+/* Dark mode border color */
+@media (prefers-color-scheme: dark) {
+    #header-container {
+      border: 2px solid white;
+    }
 }
 
 /* Default (light mode or no preference) */

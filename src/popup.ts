@@ -194,8 +194,9 @@ class SliderCheckbox extends HTMLElement {
                     transition: .4s;
                 }
 
-                input:focus + .slider {
-                    box-shadow: 0 0 1px lightgreen;
+                /* Focus indication for the label */
+                input:focus + .slider{
+                    box-shadow: 0 0 2px 2px rgba(63, 169, 242, 0.8);
                 }
 
                 input:checked + .slider:before {
@@ -214,7 +215,7 @@ class SliderCheckbox extends HTMLElement {
                 } 
             </style>
             <label class="switch">
-                <input type="checkbox" class="lock-toggle" ${this.checked ? 'checked' : ''} />
+                <input type="checkbox" class="lock-toggle" ${this.checked ? 'checked' : ''} aria-label="Toggle Locked"/>
                 <span class="slider round ${this.locked ? "locked" : ""} ${this.unlocked ? "unlocked" : ""}"></span>
             </label> `;
 
@@ -654,14 +655,34 @@ class GearIcon extends HTMLElement {
                     height: var(--size, 40px);
                 }
 
+                button {
+                    all: unset; /* Remove default button styles */
+                    display: inline-block;
+                    width: 100%;
+                    height: 100%;
+                    background: transparent;
+                    border: none;
+                    cursor: pointer;
+                    transition: transform 0.3s ease;
+                }
+
+                button:focus {
+                    box-shadow: 0 0 2px 2px rgba(63, 169, 242, 0.8);
+                    outline: none;
+                }
+
+                button:focus-visible {
+                    outline: 2px solid rgba(63, 169, 242, 0.8); /* Optional: better focus styles for accessibility */
+                }
+
+                button:hover img {
+                    transform: scale(1.2);
+                }
+
                 img {
                     width: 100%;
                     height: 100%;
                     transition: transform 0.3s ease;
-                }
-
-                :host(:hover) img {
-                    transform: scale(1.2);
                 }
 
                 /* Default (light mode or no preference) */
@@ -676,7 +697,10 @@ class GearIcon extends HTMLElement {
                     }
                 }
             </style>
-            <img class="svg-icon" src="{{src}}" alt="Gear Icon">
+
+            <button aria-label="Settings">
+                <img class="svg-icon" src="{{src}}" alt="Gear Icon">
+            </button>
         `;
 
         const src = this.getAttribute('src') || '/public/images/gear-svgrepo-com-light.svg'; // Default to local 'gear-icon.svg'
@@ -721,14 +745,34 @@ class TrashIcon extends HTMLElement {
                     height: var(--size, 40px);
                 }
 
+                button {
+                    all: unset; /* Remove default button styles */
+                    display: inline-block;
+                    width: 100%;
+                    height: 100%;
+                    background: transparent;
+                    border: none;
+                    cursor: pointer;
+                    transition: transform 0.3s ease;
+                }
+
+                button:focus {
+                    box-shadow: 0 0 2px 2px rgba(63, 169, 242, 0.8);
+                    outline: none;
+                }
+
+                button:focus-visible {
+                    outline: 2px solid rgba(63, 169, 242, 0.8); /* Optional: better focus styles for accessibility */
+                }
+
+                button:hover img {
+                    transform: scale(1.2);
+                }
+
                 img {
                     width: 100%;
                     height: 100%;
                     transition: transform 0.3s ease;
-                }
-
-                :host(:hover) img {
-                    transform: scale(1.2);
                 }
 
                 /* Default (light mode or no preference) */
@@ -743,7 +787,10 @@ class TrashIcon extends HTMLElement {
                     }
                 }
             </style>
-            <img class="svg-icon" src="{{src}}" alt="Trash Icon">
+
+            <button aria-label="Delete Keys">
+                <img class="svg-icon" src="{{src}}" alt="Trash Icon">
+            </button>
         `;
 
         const src = this.getAttribute('src') || '/public/images/trash-svgrepo-com-light.svg'; // Default to local 'gear-icon.svg'
@@ -915,6 +962,13 @@ class BookmarkNode extends HTMLElement {
         }
     }
 
+    #showErrorOccured() {
+        if (this.shadowRoot!.querySelector(".hasError") == null) {
+            let node = htmlToNode(`<p class="hasError" style="color:red;" slot="fieldset-slot">Decryption failure(s) occured</p>`);
+            this.replaceChildren(node);
+        }
+    }
+
     #clearFieldsets() {
         this.replaceChildren();
     }
@@ -965,12 +1019,16 @@ class BookmarkNode extends HTMLElement {
 
         try {
             let privateKey = await unwrapPrivateKey(password, nodeSettings.key!, nodeSettings.salt!, nodeSettings.iv!);
-            await decryptBookmarks(bookmarkNode, privateKey);
+            let hasError = await decryptBookmarks(bookmarkNode, privateKey);
             (<NodeSettings> nodeState.nodeSettings).locked = false;
             await updateNodeSettings(this.nodeId, <NodeSettings> nodeState.nodeSettings);
             this.#clearFieldsets();
             this.#sliderCheckbox.setAttribute("unlocked", "");
             this.#sliderCheckbox.removeAttribute("locked");
+            if (hasError) {
+                this.#showErrorOccured();
+            }
+
         } catch (error) {
             console.log(error);
             (<PasswordEnterFieldset> this.#passwordEnterFieldset).setAttribute("password-fail", "");
@@ -1010,7 +1068,7 @@ class BookmarkNode extends HTMLElement {
 
         try {
             let privateKey = await unwrapPrivateKey(password, nodeSettings.key!, nodeSettings.salt!, nodeSettings.iv!);
-            await decryptBookmarks(bookmarkNode, privateKey);
+            let hasError = await decryptBookmarks(bookmarkNode, privateKey);
             state.nodeObject[this.nodeId].nodeSettings = {};
             await deleteNodeSettings(this.nodeId);
             this.#clearFieldsets();
@@ -1019,6 +1077,9 @@ class BookmarkNode extends HTMLElement {
             this.#sliderCheckbox.removeAttribute("checked");
             this.#settingsButton.hidden = true;
             this.#deleteButton.hidden = true;
+            if (hasError) {
+                this.#showErrorOccured();
+            }
         } catch (error) {
             console.log(error);
             console.log(this.#passwordDeleteFieldset);

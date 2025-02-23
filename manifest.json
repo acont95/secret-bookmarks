@@ -1,57 +1,65 @@
 {
-    "manifest_version": 3,
-    "name": "Secret Bookmarks",
-    "version": "1.0",
+  "manifest_version": 3,
+  "name": "Secret Bookmarks",
+  "version": "1.0",
 
-    "developer": {
-      "name": "Alex Conticello",
-      "url": "https://github.com/acont95"
+  "developer": {
+    "name": "Alex Conticello",
+    "url": "https://github.com/acont95"
+  },
+
+  "description": "Encrypt selected bookmarks folders",
+
+  "icons": {
+    "48": "public/images/book-lock.svg"
+  },
+
+  "options_ui": {
+    "page": "public/html/options.html"
+  },
+
+  "permissions": [
+      "bookmarks",
+      "storage"
+  ],
+
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "secret-bookmarks@org.ac.com"
+    }
+  },
+
+  "action": {
+    "default_area": "navbar",
+    "default_popup": "public/html/popup.html",
+    "default_icon": {
+      "16": "public/images/book-lock-outline.svg",
+      "32": "public/images/book-lock-outline.svg"
     },
+    "theme_icons": [{
+      "light": "public/images/book-lock-outline-light.svg",
+      "dark": "public/images/book-lock-outline.svg",
+      "size": 16
+    }, {
+      "light": "public/images/book-lock-outline-light.svg",
+      "dark": "public/images/book-lock-outline.svg",
+      "size": 32
+    }]
+  },
 
-    "description": "Encrypt selected bookmarks folders",
-  
-    "icons": {
-      "48": "public/images/book-lock.svg"
-    },
-
-    "options_ui": {
-      "page": "public/html/options.html"
-    },
-
-    "permissions": [
-        "bookmarks",
-        "storage"
+  "background": {
+    "scripts": [
+      "public/js/background-script.js"
     ],
+    "type": "module"
+  },
 
-    "browser_specific_settings": {
-      "gecko": {
-        "id": "secret-bookmarks@org.ac.com"
+  "commands": {
+    "_execute_action": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+L"
       }
-    },
-
-    "action": {
-      "default_area": "navbar",
-      "default_popup": "public/html/popup.html",
-      "default_icon": {
-        "16": "public/images/book-lock-outline.svg",
-        "32": "public/images/book-lock-outline.svg"
-      },
-      "theme_icons": [{
-        "light": "public/images/book-lock-outline-light.svg",
-        "dark": "public/images/book-lock-outline.svg",
-        "size": 16
-      }, {
-        "light": "public/images/book-lock-outline-light.svg",
-        "dark": "public/images/book-lock-outline.svg",
-        "size": 32
-      }]
-    },
-
-    "background": {
-      "scripts": [
-        "public/js/background-script.js"
-      ],
-      "type": "module"
     }
   }
+}
   

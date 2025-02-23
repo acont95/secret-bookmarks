@@ -34,6 +34,13 @@ li > p {
     align-items: center;
 }
 
+/* Dark mode border color */
+@media (prefers-color-scheme: dark) {
+    #header-container {
+      border: 2px solid white;
+    }
+}
+
 /* Default (light mode or no preference) */
 .book-svg-icon {
     content: url('/public/images/book-lock-outline.svg');

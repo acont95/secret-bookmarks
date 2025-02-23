@@ -158,47 +158,55 @@ async function encryptBookmarks(node: browser.bookmarks.BookmarkTreeNode, public
     }
 }
 
-async function decryptBookmarks(node: browser.bookmarks.BookmarkTreeNode, privateKey: CryptoKey) {
+async function decryptBookmarks(node: browser.bookmarks.BookmarkTreeNode, privateKey: CryptoKey): Promise<boolean> {
+    let hasError = false;
+
     if (node.children == null){
-        return;
+        return hasError;
     }
     let baseUrl = "data:text/plain;base64,";
     let decoder = new TextDecoder();
 
     for (let childNode of node.children) {
         if (childNode.type == "bookmark" && childNode.url!.includes(baseUrl)) {
-            let urlData = parseDataUrl(baseUrl, childNode.url!);
-            let messageKey = await crypto.subtle.unwrapKey(
-                "raw",
-                base64ToBytes(urlData.b64MessageKey),
-                privateKey,
-                {name: "RSA-OAEP"},
-                {name: "AES-GCM"},
-                true,
-                ["encrypt", "decrypt"]
-            );
-
-            let decryptedTitle = await crypto.subtle.decrypt(
-                {name: "AES-GCM", iv: base64ToBytes(urlData.b64TitleIv)},
-                messageKey,
-                base64ToBytes(childNode.title)
-            );
+            try {
+                let urlData = parseDataUrl(baseUrl, childNode.url!);
+                let messageKey = await crypto.subtle.unwrapKey(
+                    "raw",
+                    base64ToBytes(urlData.b64MessageKey),
+                    privateKey,
+                    {name: "RSA-OAEP"},
+                    {name: "AES-GCM"},
+                    true,
+                    ["encrypt", "decrypt"]
+                );
     
-            let decryptedUrl = await crypto.subtle.decrypt(
-                {name: "AES-GCM", iv: base64ToBytes(urlData.b64UrlIv)},
-                messageKey,
-                base64ToBytes(urlData.b64Url)
-            );
-    
-            browser.bookmarks.update(
-                childNode.id,
-                {
-                    title: decoder.decode(decryptedTitle),
-                    url: decoder.decode(decryptedUrl)
-                }
-            );
+                let decryptedTitle = await crypto.subtle.decrypt(
+                    {name: "AES-GCM", iv: base64ToBytes(urlData.b64TitleIv)},
+                    messageKey,
+                    base64ToBytes(childNode.title)
+                );
+        
+                let decryptedUrl = await crypto.subtle.decrypt(
+                    {name: "AES-GCM", iv: base64ToBytes(urlData.b64UrlIv)},
+                    messageKey,
+                    base64ToBytes(urlData.b64Url)
+                );
+                
+                browser.bookmarks.update(
+                    childNode.id,
+                    {
+                        title: decoder.decode(decryptedTitle),
+                        url: decoder.decode(decryptedUrl)
+                    }
+                );
+            } catch (error) {
+                hasError = true;
+            }
         }
     }
+
+    return hasError;
 }
 
 /*
