@@ -71,9 +71,18 @@ async function onReady() {
     );
 }
 
-function htmlToNode(html: string): DocumentFragment {
+function htmlToNode(html: string): Node {
     const template = document.createElement('template');
-    template.innerHTML = html.trim();
+
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+  
+    const styles = doc.querySelectorAll('style');
+    styles.forEach(style => template.content.appendChild(style));
+  
+    const bodyChildren = doc.body.childNodes;
+    bodyChildren.forEach(child => template.content.appendChild(child.cloneNode(true)));
+  
     return template.content;
 }
 

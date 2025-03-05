@@ -4,8 +4,8 @@
     "module": "ES2015",
     "sourceMap": true,
     "strict": true,
-    "outDir": "public/js",
+    "outDir": "public/js"
   },
   "include": ["src/**/*.ts"],
-  "exclude": ["node_modules"],
+  "exclude": ["node_modules"]
 }

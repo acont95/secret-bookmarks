@@ -5,4 +5,5 @@ tasks:
       desc: Build extension
       cmds:
         - npx tsc
+        - web-ext build --overwrite-dest
       
